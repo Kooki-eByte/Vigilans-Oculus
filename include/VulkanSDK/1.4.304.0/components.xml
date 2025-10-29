@@ -1,0 +1,81 @@
+<Packages>
+    <ApplicationName>Vulkan SDK 1.4.304.0</ApplicationName>
+    <ApplicationVersion>1.0.0</ApplicationVersion>
+    <Package>
+        <Name>com.lunarg.vulkan</Name>
+        <Title>The Vulkan SDK</Title>
+        <Description>Install the Vulkan SDK and optional components.</Description>
+        <TreeName></TreeName>
+        <Version>1.4.304.0</Version>
+        <LastUpdateDate></LastUpdateDate>
+        <InstallDate>2025-01-19</InstallDate>
+        <Size>0</Size>
+        <ForcedInstallation>true</ForcedInstallation>
+    </Package>
+    <Package>
+        <Name>com.lunarg.vulkan.core</Name>
+        <Title>The Vulkan SDK Core (Always Installed)</Title>
+        <Description>These components make up the core Vulkan SDK. This includes the Vulkan Loader, Layers, VkConfig, and other essential shader development tools.</Description>
+        <TreeName></TreeName>
+        <Version>1.4.304.0</Version>
+        <LastUpdateDate></LastUpdateDate>
+        <InstallDate>2025-01-19</InstallDate>
+        <Size>953935647</Size>
+        <ForcedInstallation>true</ForcedInstallation>
+    </Package>
+    <Package>
+        <Name>com.lunarg.vulkan.debug</Name>
+        <Title>Shader Toolchain Debug Symbols - 64-bit</Title>
+        <Description>Install debug shader toolchain libraries.</Description>
+        <TreeName></TreeName>
+        <Version>1.4.304.0</Version>
+        <LastUpdateDate></LastUpdateDate>
+        <InstallDate>2025-01-19</InstallDate>
+        <Size>1597720283</Size>
+        <Checkable>true</Checkable>
+    </Package>
+    <Package>
+        <Name>com.lunarg.vulkan.glm</Name>
+        <Title>GLM headers.</Title>
+        <Description>This installs the GLM headers.</Description>
+        <TreeName></TreeName>
+        <Version>1.4.304.0</Version>
+        <LastUpdateDate></LastUpdateDate>
+        <InstallDate>2025-01-19</InstallDate>
+        <Size>2185134</Size>
+        <Checkable>true</Checkable>
+    </Package>
+    <Package>
+        <Name>com.lunarg.vulkan.sdl2</Name>
+        <Title>SDL2 libraries and headers.</Title>
+        <Description>This installs the 64-bit SDL2 libraries and headers.</Description>
+        <TreeName></TreeName>
+        <Version>1.4.304.0</Version>
+        <LastUpdateDate></LastUpdateDate>
+        <InstallDate>2025-01-19</InstallDate>
+        <Size>59453355</Size>
+        <Checkable>true</Checkable>
+    </Package>
+    <Package>
+        <Name>com.lunarg.vulkan.vma</Name>
+        <Title>Vulkan Memory Allocator header.</Title>
+        <Description>This installs the VMA header file.</Description>
+        <TreeName></TreeName>
+        <Version>1.4.304.0</Version>
+        <LastUpdateDate></LastUpdateDate>
+        <InstallDate>2025-01-19</InstallDate>
+        <Size>748277</Size>
+        <Checkable>true</Checkable>
+    </Package>
+    <Package>
+        <Name>com.lunarg.vulkan.volk</Name>
+        <Title>Volk header, source, and library.</Title>
+        <Description>This installs the Volk header, source file, and library.</Description>
+        <TreeName></TreeName>
+        <Version>1.4.304.0</Version>
+        <LastUpdateDate></LastUpdateDate>
+        <InstallDate>2025-01-19</InstallDate>
+        <Size>1801813</Size>
+        <Checkable>true</Checkable>
+    </Package>
+</Packages>

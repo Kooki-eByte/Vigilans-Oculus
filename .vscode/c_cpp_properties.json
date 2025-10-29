@@ -1,0 +1,24 @@
+{
+  "configurations": [
+    {
+      "name": "windows-gcc-x64",
+      "includePath": [
+        "${workspaceFolder}/**",
+        "${workspaceFolder}/**/**",
+        "${workspaceFolder}/**/**/**",
+        "${workspaceFolder}/**/**/**/**",
+        "${workspaceFolder}/**/**/**/**/**",
+        "${workspaceFolder}/**/**/**/**/**/**",
+        "${workspaceFolder}/**/**/**/**/**/**/**"
+      ],
+      "compilerPath": "C:/gcc-14.2.0/bin/gcc.exe",
+      "cStandard": "c99",
+      "cppStandard": "c++11",
+      "intelliSenseMode": "windows-gcc-x64",
+      "compilerArgs": [
+        ""
+      ]
+    }
+  ],
+  "version": 4
+}

@@ -1,0 +1,15 @@
+C:/code/Vigilans-Oculus/include/glfw-3.4/build/CMakeFiles/uninstall.dir
+C:/code/Vigilans-Oculus/include/glfw-3.4/build/CMakeFiles/edit_cache.dir
+C:/code/Vigilans-Oculus/include/glfw-3.4/build/CMakeFiles/rebuild_cache.dir
+C:/code/Vigilans-Oculus/include/glfw-3.4/build/CMakeFiles/list_install_components.dir
+C:/code/Vigilans-Oculus/include/glfw-3.4/build/CMakeFiles/install.dir
+C:/code/Vigilans-Oculus/include/glfw-3.4/build/CMakeFiles/install/local.dir
+C:/code/Vigilans-Oculus/include/glfw-3.4/build/CMakeFiles/install/strip.dir
+C:/code/Vigilans-Oculus/include/glfw-3.4/build/src/CMakeFiles/glfw.dir
+C:/code/Vigilans-Oculus/include/glfw-3.4/build/src/CMakeFiles/update_mappings.dir
+C:/code/Vigilans-Oculus/include/glfw-3.4/build/src/CMakeFiles/edit_cache.dir
+C:/code/Vigilans-Oculus/include/glfw-3.4/build/src/CMakeFiles/rebuild_cache.dir
+C:/code/Vigilans-Oculus/include/glfw-3.4/build/src/CMakeFiles/list_install_components.dir
+C:/code/Vigilans-Oculus/include/glfw-3.4/build/src/CMakeFiles/install.dir
+C:/code/Vigilans-Oculus/include/glfw-3.4/build/src/CMakeFiles/install/local.dir
+C:/code/Vigilans-Oculus/include/glfw-3.4/build/src/CMakeFiles/install/strip.dir
