@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <cstdlib>
+#include <cstring>
 #include "defines.h"
 #define GREED_IMPLEMENTATION
 #include "../include/greed/greed.h"
@@ -19,13 +20,59 @@
 // TODO: Remove these globals into a better location later
 static VkInstance instance;
 
+// Validation layer
+const char *validationLayers[] = {
+  "VK_LAYER_KHRONOS_validation"
+};
+
+const u32 validationLayersLength = (u32)(sizeof(validationLayers) / sizeof(validationLayers[0]));
+
+#ifdef NDEBUG
+const bool enableValidationLayers = false;
+#else
+const bool enableValidationLayers = true;
+#endif
+
+bool checkValidationLayerSupport(void) {
+  u32 layerCount = 0;
+  vkEnumerateInstanceLayerProperties(&layerCount, 0);
+
+  VkLayerProperties availableLayers[layerCount] = {};
+  vkEnumerateInstanceLayerProperties(&layerCount, availableLayers);
+
+  for (u32 validationLayerIndex = 0; validationLayerIndex < validationLayersLength; validationLayerIndex++) {
+    bool layerFound = false;
+
+    for (u32 availLayerIndex = 0; availLayerIndex < layerCount; availLayerIndex++) {
+      const VkLayerProperties layerProp = availableLayers[availLayerIndex];
+      
+      if (strcmp(validationLayers[validationLayerIndex], layerProp.layerName) == 0) {
+        layerFound = true;
+        break;
+      }
+    }
+
+    if (!layerFound) {
+      return false;
+    }
+  }
+
+  return true;
+}
+// End Validation layer
+
 typedef struct window_settings {
   int width;
   int height;
   const char *title;
 } window_settings;
 
-bool createInstance() {
+bool createInstance(void) {
+  if (enableValidationLayers && !checkValidationLayerSupport()) {
+    g_log_error("Validation layers requested, but not available!");
+    return false;
+  }
+
   VkApplicationInfo appInfo = {};
   appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
   appInfo.pApplicationName = "Vigilans Oculus";
@@ -59,7 +106,12 @@ bool createInstance() {
   createInfo.ppEnabledExtensionNames = glfwExtensions;
 
   // Last two attributes are for validation layer
-  createInfo.enabledLayerCount = 0;
+  if (enableValidationLayers) {
+    createInfo.enabledLayerCount = validationLayersLength;
+    createInfo.ppEnabledLayerNames = (const char* const*)validationLayers;
+  } else {
+    createInfo.enabledLayerCount = 0;
+  }
 
   // TODO: 2nd arg will be for arena allocator later on.
   if (vkCreateInstance(&createInfo, 0, &instance) != VK_SUCCESS) {
@@ -85,7 +137,7 @@ bool initWindow(GLFWwindow *win, window_settings *ws) {
   return true;
 }
 
-bool initVulkan() {
+bool initVulkan(void) {
   if (!createInstance()) {
     g_log_error("Faield to initialize Vulkan!");
     return false;
