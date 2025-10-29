@@ -18,7 +18,81 @@
 // https://vulkan-tutorial.com/resources/vulkan_tutorial_en.pdf
 
 // TODO: Remove these globals into a better location later
-static VkInstance instance;
+VkInstance instance;
+VkDebugUtilsMessengerEXT debugMessenger;
+typedef struct vulk_extension_t {
+  const char **extensions;
+  size_t count;
+} vulk_extension_t;
+vulk_extension_t vulk_extension;
+
+// Proxy functions for debug messenger
+VkResult createDebugUtilsMessengerEXT(VkInstance *pInstance, const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkDebugUtilsMessengerEXT *pDebugMessenger) {
+  auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(*pInstance, "vkCreateDebugUtilsMessengerEXT");
+  if (func != 0) {
+    return func(*pInstance, pCreateInfo, pAllocator, pDebugMessenger);
+  } else {
+    return VK_ERROR_EXTENSION_NOT_PRESENT;
+  }
+}
+
+static void destroyDebugUtilsMessengerEXT(VkInstance *pInstance, VkDebugUtilsMessengerEXT *pDebugMessenger, const VkAllocationCallbacks *pAllocator) {
+  auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(*pInstance, "vkDestroyDebugUtilsMessengerEXT");
+  if (func != 0) {
+    func(*pInstance, *pDebugMessenger, pAllocator);
+  }
+}
+// End of proxy functions
+
+// Vulkan Debug Callback function
+static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
+  VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
+  VkDebugUtilsMessageTypeFlagsEXT message_type,
+  const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
+  void *pUserData
+) {
+  fprintf(stderr, "Validation layer: \n");
+  switch (message_severity)
+  {
+    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
+      g_log_debug(pCallbackData->pMessage);
+      break;
+    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
+      // TODO: Change to info (will need to make more logs in Greed lib)  
+      g_log_success(pCallbackData->pMessage);
+      break;
+    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
+      g_log_warning(pCallbackData->pMessage);
+      break;
+    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
+      g_log_error(pCallbackData->pMessage);
+      break;
+    default:
+      fprintf(stderr, "\t%s\n", pCallbackData->pMessage);
+      break;
+  }
+
+  return VK_FALSE;
+}
+
+// TODO: Make sure when calling this function that we check if validation layer is enabled
+bool setupDebugMessenger() {
+  VkDebugUtilsMessengerCreateInfoEXT createInfo = {};
+  createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+  createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+  createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+  createInfo.pfnUserCallback = debugCallback;
+  // createInfo.pUserData = stuff // parameter contains a pointer that allows you to pass your own data to it.
+
+  // TODO: Arena allocator setup - 3rd arg
+  if (createDebugUtilsMessengerEXT(&instance, &createInfo, 0, &debugMessenger) != VK_SUCCESS) {
+    g_log_error("Failed to set up debug messenger!");
+
+    return false;
+  }
+
+  return true;
+}
 
 // Validation layer
 const char *validationLayers[] = {
@@ -61,6 +135,33 @@ bool checkValidationLayerSupport(void) {
 }
 // End Validation layer
 
+bool getRequiredExtensions(void) {
+  u32 glfw_extension_count = 0;
+  const char **glfw_extensions;
+
+  glfw_extensions = glfwGetRequiredInstanceExtensions(&glfw_extension_count);
+
+  vulk_extension.count = sizeof(const char *) * glfw_extension_count;
+  // TODO: Change to work with arena allocator later
+  vulk_extension.extensions = (const char **)malloc(vulk_extension.count);
+  if (!vulk_extension.extensions) {
+    g_log_error("handle allocation failure!");
+    return false;
+  }
+  memcpy(vulk_extension.extensions, glfw_extensions, vulk_extension.count);
+
+  if (enableValidationLayers) {
+    const char *debug_util = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
+    size_t new_count = vulk_extension.count + 1;
+    vulk_extension.extensions = (const char **)realloc(vulk_extension.extensions, sizeof(const char *) * new_count);
+
+    vulk_extension.extensions[new_count - 1] = debug_util;
+    vulk_extension.count = new_count;
+  }
+
+  return true;
+}
+
 typedef struct window_settings {
   int width;
   int height;
@@ -85,9 +186,6 @@ bool createInstance(void) {
   createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
   createInfo.pApplicationInfo = &appInfo;
 
-  u32 glfwExtensionCount = 0;
-  const char **glfwExtensions;
-
   u32 extCountForVulkan = 0;
   vkEnumerateInstanceExtensionProperties(0, &extCountForVulkan, 0);
 
@@ -100,10 +198,13 @@ bool createInstance(void) {
   }
 
   // Useful glfw built-in function to get the required extensions for GLFW to work.
-  glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+  if (!getRequiredExtensions()) {
+    g_log_error("Failed to get the required extensions!");
+    return false;
+  }
 
-  createInfo.enabledExtensionCount = glfwExtensionCount;
-  createInfo.ppEnabledExtensionNames = glfwExtensions;
+  createInfo.enabledExtensionCount = (u32)vulk_extension.count;
+  createInfo.ppEnabledExtensionNames = vulk_extension.extensions;
 
   // Last two attributes are for validation layer
   if (enableValidationLayers) {
@@ -151,7 +252,12 @@ void mainLoop(GLFWwindow *win) {
   }
 }
 
-void cleanup(GLFWwindow *win) {
+void cleanup(GLFWwindow *win, const char **ext) {
+  if (enableValidationLayers) {
+    // TODO: Ensure you change the 3rd arg to the arena allocator 
+    destroyDebugUtilsMessengerEXT(&instance, &debugMessenger, 0);
+  }
+  free(ext);
   // TODO: Ensure you change the 2nd arg to the free arena allocator 
   vkDestroyInstance(instance, 0);
 
@@ -180,7 +286,7 @@ bool runApp(int width, int height, const char *window_name) {
 
   mainLoop(window);
 
-  cleanup(window);
+  cleanup(window, vulk_extension.extensions);
 
   return true;
 }
