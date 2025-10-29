@@ -75,14 +75,18 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
   return VK_FALSE;
 }
 
+void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT *createInfo) {
+  createInfo->sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+  createInfo->messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+  createInfo->messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+  createInfo->pfnUserCallback = debugCallback;
+  // createInfo->pUserData = stuff // parameter contains a pointer that allows you to pass your own data to it.
+}
+
 // TODO: Make sure when calling this function that we check if validation layer is enabled
 bool setupDebugMessenger() {
   VkDebugUtilsMessengerCreateInfoEXT createInfo = {};
-  createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-  createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-  createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-  createInfo.pfnUserCallback = debugCallback;
-  // createInfo.pUserData = stuff // parameter contains a pointer that allows you to pass your own data to it.
+  populateDebugMessengerCreateInfo(&createInfo);
 
   // TODO: Arena allocator setup - 3rd arg
   if (createDebugUtilsMessengerEXT(&instance, &createInfo, 0, &debugMessenger) != VK_SUCCESS) {
@@ -93,6 +97,9 @@ bool setupDebugMessenger() {
 
   return true;
 }
+
+
+// end debug messenger code
 
 // Validation layer
 const char *validationLayers[] = {
@@ -186,6 +193,8 @@ bool createInstance(void) {
   createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
   createInfo.pApplicationInfo = &appInfo;
 
+
+
   u32 extCountForVulkan = 0;
   vkEnumerateInstanceExtensionProperties(0, &extCountForVulkan, 0);
 
@@ -206,12 +215,17 @@ bool createInstance(void) {
   createInfo.enabledExtensionCount = (u32)vulk_extension.count;
   createInfo.ppEnabledExtensionNames = vulk_extension.extensions;
 
-  // Last two attributes are for validation layer
+  VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo = {};
   if (enableValidationLayers) {
     createInfo.enabledLayerCount = validationLayersLength;
     createInfo.ppEnabledLayerNames = (const char* const*)validationLayers;
+  
+    populateDebugMessengerCreateInfo(&debugCreateInfo);
+    createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT *)&debugCreateInfo;
   } else {
     createInfo.enabledLayerCount = 0;
+  
+    createInfo.pNext = 0;
   }
 
   // TODO: 2nd arg will be for arena allocator later on.
@@ -240,9 +254,12 @@ bool initWindow(GLFWwindow *win, window_settings *ws) {
 
 bool initVulkan(void) {
   if (!createInstance()) {
-    g_log_error("Faield to initialize Vulkan!");
+    g_log_error("Failed to initialize Vulkan!");
     return false;
-  } 
+  }
+  if (!setupDebugMessenger()) {
+    g_log_error("Failed to setup debug messenger!");
+  }
   return true;
 }
 
