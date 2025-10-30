@@ -1,3 +1,6 @@
+// Following a Vulkan tutorial guide to draw a triangle:
+// https://vulkan-tutorial.com/resources/vulkan_tutorial_en.pdf
+
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
@@ -14,14 +17,25 @@
 #define GREED_IMPLEMENTATION
 #include "../include/greed/greed.h"
 
-// Following a Vulkan tutorial guide to draw a triangle:
-// https://vulkan-tutorial.com/resources/vulkan_tutorial_en.pdf
+// Validation layer
+const char *validationLayers[] = {
+  "VK_LAYER_KHRONOS_validation"
+};
+
+const u32 validationLayersLength = (u32)(sizeof(validationLayers) / sizeof(validationLayers[0]));
+
+#ifdef NDEBUG
+const bool enableValidationLayers = false;
+#else
+const bool enableValidationLayers = true;
+#endif
 
 // TODO: Remove these globals into a better location later
 VkInstance instance;
 VkDebugUtilsMessengerEXT debugMessenger;
 VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
 VkDevice logicalDevice;
+VkQueue graphicsQueue;
 
 typedef struct vulk_extension_t {
   const char **extensions;
@@ -59,8 +73,54 @@ queue_family_indices_t *findQueueFamily(VkPhysicalDevice device) {
 
   return indices;
 }
-
 // End Queue Family section
+
+// logical device
+bool createLogicalDevice() {
+  queue_family_indices_t *indices = findQueueFamily(physicalDevice);
+
+  // Queue Create Info
+  f32 queue_priority = 1.0f;
+  VkDeviceQueueCreateInfo queue_create_info = {};
+  queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+  queue_create_info.queueFamilyIndex = indices->graphicsFamily;
+  queue_create_info.queueCount = 1;
+  queue_create_info.pQueuePriorities = &queue_priority;
+  
+  // Get device properties for things like name, type, supported Vulkan version.
+  VkPhysicalDeviceProperties device_props;
+  vkGetPhysicalDeviceProperties(physicalDevice, &device_props);
+  // Support for optional features like texture compression, 64 bit floats and multi viewport rendering (useful for VR)
+  VkPhysicalDeviceFeatures device_features;
+  vkGetPhysicalDeviceFeatures(physicalDevice, &device_features);
+  
+  // logical queue
+  VkDeviceCreateInfo logical_create_info = {};
+  logical_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+  logical_create_info.pQueueCreateInfos = &queue_create_info;
+  logical_create_info.queueCreateInfoCount = 1;
+  logical_create_info.pEnabledFeatures = &device_features;
+  
+  // No longer as of this link: https://www.khronos.org/registry/vulkan/specs/1.3-extensions/html/chap40.html#extendingvulkan-layers-devicelayerdeprecation
+  // However to be compatible with older version of vulkan GPUs we will include it here.
+  logical_create_info.enabledExtensionCount = 0;
+  if (enableValidationLayers) {
+    logical_create_info.enabledLayerCount = validationLayersLength;
+    logical_create_info.ppEnabledLayerNames = validationLayers;
+  } else {
+    logical_create_info.enabledLayerCount = 0;
+  }
+
+  if (vkCreateDevice(physicalDevice, &logical_create_info, 0, &logicalDevice) != VK_SUCCESS) {
+    g_log_error("Failed to create logical device!");
+    return false;
+  }
+
+  vkGetDeviceQueue(logicalDevice, indices->graphicsFamily, 0, &graphicsQueue);
+  return true;
+}
+
+// End logical device
 
 // Proxy functions for debug messenger
 VkResult createDebugUtilsMessengerEXT(VkInstance *pInstance, const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkDebugUtilsMessengerEXT *pDebugMessenger) {
@@ -136,19 +196,6 @@ bool setupDebugMessenger() {
 
 
 // end debug messenger code
-
-// Validation layer
-const char *validationLayers[] = {
-  "VK_LAYER_KHRONOS_validation"
-};
-
-const u32 validationLayersLength = (u32)(sizeof(validationLayers) / sizeof(validationLayers[0]));
-
-#ifdef NDEBUG
-const bool enableValidationLayers = false;
-#else
-const bool enableValidationLayers = true;
-#endif
 
 bool checkValidationLayerSupport(void) {
   u32 layerCount = 0;
@@ -297,15 +344,9 @@ bool isDeviceSuitable(VkPhysicalDevice device) {
     return false;
   }
 
-  // Get device properties for things like name, type, supported Vulkan version.
-  VkPhysicalDeviceProperties device_props;
-  vkGetPhysicalDeviceProperties(device, &device_props);
-  // Support for optional features like texture compression, 64 bit floats and multi viewport rendering (useful for VR)
-  VkPhysicalDeviceFeatures device_features;
-  vkGetPhysicalDeviceFeatures(device, &device_features);
-
   // Set this so that we only support GPUs with support for geometry shaders.
-  return device_props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && device_features.geometryShader;
+  // return device_props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && device_features.geometryShader;
+  return true;
 }
 
 // Physical Device handling
@@ -369,6 +410,7 @@ void cleanup(GLFWwindow *win, const char **ext) {
     // TODO: Ensure you change the 3rd arg to the arena allocator 
     destroyDebugUtilsMessengerEXT(&instance, &debugMessenger, 0);
   }
+  vkDestroyDevice(logicalDevice, 0);
   free(ext);
   // TODO: Ensure you change the 2nd arg to the free arena allocator 
   vkDestroyInstance(instance, 0);
