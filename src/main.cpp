@@ -20,6 +20,8 @@
 // TODO: Remove these globals into a better location later
 VkInstance instance;
 VkDebugUtilsMessengerEXT debugMessenger;
+VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
+
 typedef struct vulk_extension_t {
   const char **extensions;
   size_t count;
@@ -252,6 +254,40 @@ bool initWindow(GLFWwindow *win, window_settings *ws) {
   return true;
 }
 
+bool isDeviceSuitable(VkPhysicalDevice device) {
+  return true;
+}
+
+// Physical Device handling
+bool pickPhysicalDevice() {
+  u32 device_count = 0;
+  vkEnumeratePhysicalDevices(instance, &device_count, 0);
+
+  if (device_count == 0) {
+    g_log_error("failed to find GPUs with Vulkan support!");
+    return false;
+  }
+  
+  VkPhysicalDevice devices[device_count] = {};
+  vkEnumeratePhysicalDevices(instance, &device_count, devices);
+
+  for (u32 i = 0; i < device_count; i++) {
+    if (isDeviceSuitable(devices[i])) {
+      physicalDevice = devices[i];
+      break;
+    } else {
+      g_log_warning("device found is not suitable..");
+    }
+  }
+
+  if (physicalDevice == VK_NULL_HANDLE) {
+    g_log_error("Failed to find a suitable GPU!");
+    return false;
+  }
+
+  return true;
+}
+
 bool initVulkan(void) {
   if (!createInstance()) {
     g_log_error("Failed to initialize Vulkan!");
@@ -260,6 +296,10 @@ bool initVulkan(void) {
   if (!setupDebugMessenger()) {
     g_log_error("Failed to setup debug messenger!");
   }
+  if (!pickPhysicalDevice()) {
+    g_log_error("Failed to pick physical device!");
+  }
+
   return true;
 }
 
