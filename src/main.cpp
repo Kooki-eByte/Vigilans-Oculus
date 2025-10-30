@@ -28,6 +28,39 @@ typedef struct vulk_extension_t {
 } vulk_extension_t;
 vulk_extension_t vulk_extension;
 
+typedef struct queue_family_indices_t {
+  u32 graphicsFamily;
+} queue_family_indices_t;
+
+// Queue Family
+queue_family_indices_t *findQueueFamily(VkPhysicalDevice device) {
+  queue_family_indices_t *indices = NULL;
+  
+  u32 queue_family_count = 0;
+  vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, 0);
+
+  VkQueueFamilyProperties queue_families[queue_family_count] = {};
+  vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, queue_families);
+
+  bool queue_family_initialized = false;
+  for (u32 i = 0; i < queue_family_count; i++) {
+    if (indices != NULL) break;
+
+    if (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+      // Initialize to memory so it is no longer null and can add values to actual memory and not NULL
+      if (!queue_family_initialized) {
+        indices = (queue_family_indices_t *)malloc(sizeof(queue_family_indices_t));
+        queue_family_initialized = true;
+      }
+      indices->graphicsFamily = i;
+    }
+  }
+
+  return indices;
+}
+
+// End Queue Family section
+
 // Proxy functions for debug messenger
 VkResult createDebugUtilsMessengerEXT(VkInstance *pInstance, const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkDebugUtilsMessengerEXT *pDebugMessenger) {
   auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(*pInstance, "vkCreateDebugUtilsMessengerEXT");
@@ -255,14 +288,21 @@ bool initWindow(GLFWwindow *win, window_settings *ws) {
 }
 
 bool isDeviceSuitable(VkPhysicalDevice device) {
+  queue_family_indices_t *indices = findQueueFamily(device);
+  if (indices == NULL) {
+    g_log_error("No graphics family was found in given device!");
+    return false;
+  }
+
   // Get device properties for things like name, type, supported Vulkan version.
   VkPhysicalDeviceProperties device_props;
-  vkGetPhysicalDeviceProperties(device, &deviceProps);
+  vkGetPhysicalDeviceProperties(device, &device_props);
   // Support for optional features like texture compression, 64 bit floats and multi viewport rendering (useful for VR)
   VkPhysicalDeviceFeatures device_features;
   vkGetPhysicalDeviceFeatures(device, &device_features);
 
-  return true;
+  // Set this so that we only support GPUs with support for geometry shaders.
+  return device_props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && device_features.geometryShader;
 }
 
 // Physical Device handling
