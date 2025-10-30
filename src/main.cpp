@@ -227,18 +227,16 @@ bool checkValidationLayerSupport(void) {
 
 bool getRequiredExtensions(void) {
   u32 glfw_extension_count = 0;
-  const char **glfw_extensions;
+  const char **glfw_extensions = glfwGetRequiredInstanceExtensions(&glfw_extension_count);
 
-  glfw_extensions = glfwGetRequiredInstanceExtensions(&glfw_extension_count);
-
-  vulk_extension.count = sizeof(const char *) * glfw_extension_count;
+  vulk_extension.count = glfw_extension_count;
   // TODO: Change to work with arena allocator later
-  vulk_extension.extensions = (const char **)malloc(vulk_extension.count);
+  vulk_extension.extensions = (const char **)malloc(sizeof(const char *) * vulk_extension.count);
   if (!vulk_extension.extensions) {
     g_log_error("handle allocation failure!");
     return false;
   }
-  memcpy(vulk_extension.extensions, glfw_extensions, vulk_extension.count);
+  memcpy(vulk_extension.extensions, glfw_extensions, sizeof(const char *) * vulk_extension.count);
 
   if (enableValidationLayers) {
     const char *debug_util = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
@@ -275,8 +273,6 @@ bool createInstance(void) {
   VkInstanceCreateInfo createInfo = {};
   createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
   createInfo.pApplicationInfo = &appInfo;
-
-
 
   u32 extCountForVulkan = 0;
   vkEnumerateInstanceExtensionProperties(0, &extCountForVulkan, 0);
@@ -320,19 +316,19 @@ bool createInstance(void) {
   return true;
 }
 
-bool initWindow(GLFWwindow *win, window_settings *ws) {
+GLFWwindow *initWindow(window_settings *ws) {
   glfwInit();
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
   glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
   
-  win = glfwCreateWindow(ws->width, ws->height, ws->title, 0, 0);
+  GLFWwindow *win = glfwCreateWindow(ws->width, ws->height, ws->title, 0, 0);
 
   if (win == NULL) {
     g_log_error("Window is null, after trying to create window!");
-    return false;
+    return 0;
   }
 
-  return true;
+  return win;
 }
 
 bool isDeviceSuitable(VkPhysicalDevice device) {
@@ -384,9 +380,11 @@ bool initVulkan(void) {
     g_log_error("Failed to initialize Vulkan!");
     return false;
   }
-  if (!setupDebugMessenger()) {
-    g_log_error("Failed to setup debug messenger!");
-    return false;
+  if (enableValidationLayers) {
+    if (!setupDebugMessenger()) {
+      g_log_error("Failed to setup debug messenger!");
+      return false;
+    }
   }
   if (!pickPhysicalDevice()) {
     g_log_error("Failed to pick physical device!");
@@ -428,10 +426,7 @@ bool runApp(int width, int height, const char *window_name) {
     .title = window_name
   };
 
-  if (!initWindow(window, &settings)) {
-    g_log_error("The GLFW Window failed to initialize!");
-    return false;
-  }
+  window = initWindow(&settings);
 
   if (!initVulkan()) {
     g_log_error("Failed to initialize Vulkan!");
