@@ -255,6 +255,13 @@ bool initWindow(GLFWwindow *win, window_settings *ws) {
 }
 
 bool isDeviceSuitable(VkPhysicalDevice device) {
+  // Get device properties for things like name, type, supported Vulkan version.
+  VkPhysicalDeviceProperties device_props;
+  vkGetPhysicalDeviceProperties(device, &deviceProps);
+  // Support for optional features like texture compression, 64 bit floats and multi viewport rendering (useful for VR)
+  VkPhysicalDeviceFeatures device_features;
+  vkGetPhysicalDeviceFeatures(device, &device_features);
+
   return true;
 }
 
