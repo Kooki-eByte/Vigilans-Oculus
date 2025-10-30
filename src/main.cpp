@@ -21,6 +21,7 @@
 VkInstance instance;
 VkDebugUtilsMessengerEXT debugMessenger;
 VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
+VkDevice logicalDevice;
 
 typedef struct vulk_extension_t {
   const char **extensions;
@@ -288,9 +289,11 @@ bool initWindow(GLFWwindow *win, window_settings *ws) {
 }
 
 bool isDeviceSuitable(VkPhysicalDevice device) {
+  // TODO: Put this in arena allocator to free later upon cleanup
   queue_family_indices_t *indices = findQueueFamily(device);
   if (indices == NULL) {
     g_log_error("No graphics family was found in given device!");
+    free(indices);
     return false;
   }
 
@@ -342,11 +345,16 @@ bool initVulkan(void) {
   }
   if (!setupDebugMessenger()) {
     g_log_error("Failed to setup debug messenger!");
+    return false;
   }
   if (!pickPhysicalDevice()) {
     g_log_error("Failed to pick physical device!");
+    return false;
   }
-
+  if (!createLogicalDevice()) {
+    g_log_error("Failed to create logical device!");
+    return false;
+  }
   return true;
 }
 
