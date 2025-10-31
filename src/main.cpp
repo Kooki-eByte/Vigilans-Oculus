@@ -1,8 +1,10 @@
 // Following a Vulkan tutorial guide to draw a triangle:
 // https://vulkan-tutorial.com/resources/vulkan_tutorial_en.pdf
-
+#define VK_USE_PLATFORM_WIN32_KHR
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#define GLFW_EXPOSE_NATIVE_WIN32
+#include <GLFW/glfw3native.h>
 
 // #define GLM_FORCE_RADIANS
 // #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -36,6 +38,7 @@ VkDebugUtilsMessengerEXT debugMessenger;
 VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
 VkDevice logicalDevice;
 VkQueue graphicsQueue;
+VkSurfaceKHR surface;
 
 typedef struct vulk_extension_t {
   const char **extensions;
@@ -45,7 +48,20 @@ vulk_extension_t vulk_extension;
 
 typedef struct queue_family_indices_t {
   u32 graphicsFamily;
+  u32 presentFamily;
 } queue_family_indices_t;
+
+// Surface
+bool createSurface(GLFWwindow *win) {
+  if (glfwCreateWindowSurface(instance, win, 0, &surface) != VK_SUCCESS) {
+    g_log_error("Failed to create window surface!");
+    return false;
+  }
+
+  return true;
+}
+
+// End Surface
 
 // Queue Family
 queue_family_indices_t *findQueueFamily(VkPhysicalDevice device) {
@@ -60,6 +76,13 @@ queue_family_indices_t *findQueueFamily(VkPhysicalDevice device) {
   bool queue_family_initialized = false;
   for (u32 i = 0; i < queue_family_count; i++) {
     if (indices != NULL) break;
+
+    VkBool32 present_support = false;
+    vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, &present_support);
+
+    if (present_support) {
+      indices->presentFamily = i;
+    }
 
     if (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
       // Initialize to memory so it is no longer null and can add values to actual memory and not NULL
@@ -76,7 +99,7 @@ queue_family_indices_t *findQueueFamily(VkPhysicalDevice device) {
 // End Queue Family section
 
 // logical device
-bool createLogicalDevice() {
+bool createLogicalDevice(void) {
   queue_family_indices_t *indices = findQueueFamily(physicalDevice);
 
   // Queue Create Info
@@ -180,7 +203,7 @@ void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT *create
 }
 
 // TODO: Make sure when calling this function that we check if validation layer is enabled
-bool setupDebugMessenger() {
+bool setupDebugMessenger(void) {
   VkDebugUtilsMessengerCreateInfoEXT createInfo = {};
   populateDebugMessengerCreateInfo(&createInfo);
 
@@ -346,7 +369,7 @@ bool isDeviceSuitable(VkPhysicalDevice device) {
 }
 
 // Physical Device handling
-bool pickPhysicalDevice() {
+bool pickPhysicalDevice(void) {
   u32 device_count = 0;
   vkEnumeratePhysicalDevices(instance, &device_count, 0);
 
@@ -375,7 +398,7 @@ bool pickPhysicalDevice() {
   return true;
 }
 
-bool initVulkan(void) {
+bool initVulkan(GLFWwindow *win) {
   if (!createInstance()) {
     g_log_error("Failed to initialize Vulkan!");
     return false;
@@ -385,6 +408,10 @@ bool initVulkan(void) {
       g_log_error("Failed to setup debug messenger!");
       return false;
     }
+  }
+  if (!createSurface(win)) {
+    g_log_error("Failed to create window surface!");
+    return false;
   }
   if (!pickPhysicalDevice()) {
     g_log_error("Failed to pick physical device!");
@@ -410,6 +437,7 @@ void cleanup(GLFWwindow *win, const char **ext) {
   }
   vkDestroyDevice(logicalDevice, 0);
   free(ext);
+  vkDestroySurfaceKHR(instance, surface, 0);
   // TODO: Ensure you change the 2nd arg to the free arena allocator 
   vkDestroyInstance(instance, 0);
 
@@ -428,7 +456,7 @@ bool runApp(int width, int height, const char *window_name) {
 
   window = initWindow(&settings);
 
-  if (!initVulkan()) {
+  if (!initVulkan(window)) {
     g_log_error("Failed to initialize Vulkan!");
     return false;
   }
