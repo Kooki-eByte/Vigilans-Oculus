@@ -15,6 +15,7 @@
 #include <stdbool.h>
 #include <cstdlib>
 #include <cstring>
+#include <set>
 #include "defines.h"
 #define GREED_IMPLEMENTATION
 #include "../include/greed/greed.h"
@@ -38,6 +39,7 @@ VkDebugUtilsMessengerEXT debugMessenger;
 VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
 VkDevice logicalDevice;
 VkQueue graphicsQueue;
+VkQueue presentQueue;
 VkSurfaceKHR surface;
 
 typedef struct vulk_extension_t {
@@ -50,6 +52,8 @@ typedef struct queue_family_indices_t {
   u32 graphicsFamily;
   u32 presentFamily;
 } queue_family_indices_t;
+
+const size_t queue_family_length = sizeof(queue_family_indices_t) / sizeof(u32);
 
 // Surface
 bool createSurface(GLFWwindow *win) {
@@ -102,14 +106,24 @@ queue_family_indices_t *findQueueFamily(VkPhysicalDevice device) {
 bool createLogicalDevice(void) {
   queue_family_indices_t *indices = findQueueFamily(physicalDevice);
 
+  VkDeviceQueueCreateInfo queue_create_infos[(u32)queue_family_length];
+  std::set<u32> unique_queue_families = {indices->graphicsFamily, indices->presentFamily};
+
   // Queue Create Info
   f32 queue_priority = 1.0f;
-  VkDeviceQueueCreateInfo queue_create_info = {};
-  queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-  queue_create_info.queueFamilyIndex = indices->graphicsFamily;
-  queue_create_info.queueCount = 1;
-  queue_create_info.pQueuePriorities = &queue_priority;
-  
+  for (u32 i = 0; i < unique_queue_families.size(); i++) {
+    VkDeviceQueueCreateInfo queue_create_info = {};
+    queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    // TODO: This is gross but quickest way in C-Style for now. Have better idea on how to do this but just pushing forward here.
+    if (i == 0) {
+      queue_create_info.queueFamilyIndex = indices->graphicsFamily;
+    } else {
+      queue_create_info.queueFamilyIndex = indices->presentFamily;
+    }
+    queue_create_info.queueCount = 1;
+    queue_create_info.pQueuePriorities = &queue_priority;
+    queue_create_infos[i] = queue_create_info;
+  }
   // Get device properties for things like name, type, supported Vulkan version.
   VkPhysicalDeviceProperties device_props;
   vkGetPhysicalDeviceProperties(physicalDevice, &device_props);
@@ -120,8 +134,8 @@ bool createLogicalDevice(void) {
   // logical queue
   VkDeviceCreateInfo logical_create_info = {};
   logical_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-  logical_create_info.pQueueCreateInfos = &queue_create_info;
-  logical_create_info.queueCreateInfoCount = 1;
+  logical_create_info.pQueueCreateInfos = queue_create_infos;
+  logical_create_info.queueCreateInfoCount = (u32)queue_family_length;
   logical_create_info.pEnabledFeatures = &device_features;
   
   // No longer as of this link: https://www.khronos.org/registry/vulkan/specs/1.3-extensions/html/chap40.html#extendingvulkan-layers-devicelayerdeprecation
@@ -140,6 +154,7 @@ bool createLogicalDevice(void) {
   }
 
   vkGetDeviceQueue(logicalDevice, indices->graphicsFamily, 0, &graphicsQueue);
+  vkGetDeviceQueue(logicalDevice, indices->presentFamily, 0, &presentQueue);
   return true;
 }
 
