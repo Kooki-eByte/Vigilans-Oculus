@@ -87,15 +87,17 @@ queue_family_indices_t *findQueueFamily(VkPhysicalDevice device) {
   VkQueueFamilyProperties queue_families[queue_family_count] = {};
   vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, queue_families);
 
+  VkBool32 present_support = false;
   for (u32 i = 0; i < queue_family_count; i++) {
-    VkBool32 present_support = false;
-    vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &present_support);
-
-    if (present_support && indices->presentFamily == UINT32_MAX) {
-      indices->presentFamily = i;
-    }
     if (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT && indices->graphicsFamily == UINT32_MAX) {
       indices->graphicsFamily = i;
+    }
+    
+    if (indices->presentFamily == UINT32_MAX) {
+      vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &present_support);
+      if (present_support) {
+        indices->presentFamily = i;
+      }
     }
     if (indices->graphicsFamily != UINT32_MAX && indices->presentFamily != UINT32_MAX) {
       break;
@@ -117,14 +119,15 @@ bool createLogicalDevice(void) {
   queue_family_indices_t *indices = findQueueFamily(physicalDevice);
 
   std::set<u32> unique_queue_families = {indices->graphicsFamily, indices->presentFamily};
-  VkDeviceQueueCreateInfo queue_infos[(u32)queue_family_length];
+  VkDeviceQueueCreateInfo queue_infos[2];
   memset(queue_infos, 0, sizeof(queue_infos));
 
   // Queue Create Info
   u32 queue_count = 0;
   f32 queue_priority = 1.0f;
   for (u32 family : unique_queue_families) {
-    VkDeviceQueueCreateInfo queue_create_info = {};
+    VkDeviceQueueCreateInfo queue_create_info;
+    memset(&queue_create_info, 0, sizeof(queue_create_info));
     queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
     // TODO: This is gross but quickest way in C-Style for now. Have better idea on how to do this but just pushing forward here.
     queue_create_info.queueFamilyIndex = family;
@@ -140,10 +143,11 @@ bool createLogicalDevice(void) {
   vkGetPhysicalDeviceFeatures(physicalDevice, &device_features);
   
   // logical queue
-  VkDeviceCreateInfo logical_create_info = {};
+  VkDeviceCreateInfo logical_create_info;
+  memset(&logical_create_info, 0, sizeof(logical_create_info));
   logical_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-  logical_create_info.pQueueCreateInfos = queue_infos;
   logical_create_info.queueCreateInfoCount = queue_count;
+  logical_create_info.pQueueCreateInfos = queue_infos;
   logical_create_info.pEnabledFeatures = &device_features;
   
   // No longer as of this link: https://www.khronos.org/registry/vulkan/specs/1.3-extensions/html/chap40.html#extendingvulkan-layers-devicelayerdeprecation
@@ -276,6 +280,11 @@ bool checkValidationLayerSupport(void) {
 bool getRequiredExtensions(void) {
   u32 glfw_extension_count = 0;
   const char **glfw_extensions = glfwGetRequiredInstanceExtensions(&glfw_extension_count);
+
+  if (!glfw_extensions || glfw_extension_count == 0) {
+    g_log_error("GLFW did not supply required Vulkan instance extensions (is Vulkan loader/driver installed?)");
+    return false;
+  }
 
   vulk_extension.count = glfw_extension_count;
   // TODO: Change to work with arena allocator later
