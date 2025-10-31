@@ -21,15 +21,15 @@
 #include "../include/greed/greed.h"
 
 // Validation layer
-const char *validationLayers[] = {
+const char * const validationLayers[] = {
   "VK_LAYER_KHRONOS_validation"
 };
 const u32 validationLayersLength = (u32)(sizeof(validationLayers) / sizeof(validationLayers[0]));
 
-const char *deviceExtensions[] = {
+const char * const deviceExtensions[] = {
   VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
-const u32 deviceExtensionsLength = (u32)(sizeof(deviceExtensions) / sizeof(deviceExtensions[0]));
+u32 deviceExtensionsLength = (u32)(sizeof(deviceExtensions) / sizeof(deviceExtensions[0]));
 
 #ifdef NDEBUG
 const bool enableValidationLayers = false;
@@ -129,7 +129,6 @@ bool createLogicalDevice(void) {
     VkDeviceQueueCreateInfo queue_create_info;
     memset(&queue_create_info, 0, sizeof(queue_create_info));
     queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    // TODO: This is gross but quickest way in C-Style for now. Have better idea on how to do this but just pushing forward here.
     queue_create_info.queueFamilyIndex = family;
     queue_create_info.queueCount = 1;
     queue_create_info.pQueuePriorities = &queue_priority;
@@ -152,8 +151,9 @@ bool createLogicalDevice(void) {
   
   // No longer as of this link: https://www.khronos.org/registry/vulkan/specs/1.3-extensions/html/chap40.html#extendingvulkan-layers-devicelayerdeprecation
   // However to be compatible with older version of vulkan GPUs we will include it here.
-  logical_create_info.enabledExtensionCount = deviceExtensionsLength;
+  logical_create_info.enabledExtensionCount = (u32)deviceExtensionsLength;
   logical_create_info.ppEnabledExtensionNames = deviceExtensions;
+  
   if (enableValidationLayers) {
     logical_create_info.enabledLayerCount = validationLayersLength;
     logical_create_info.ppEnabledLayerNames = validationLayers;
@@ -314,6 +314,11 @@ typedef struct window_settings {
 } window_settings;
 
 bool createInstance(void) {
+  if (!glfwVulkanSupported()) {
+    g_log_error("GLFW reports Vulkan is not supported on this system!");
+    return false;
+  }
+
   if (enableValidationLayers && !checkValidationLayerSupport()) {
     g_log_error("Validation layers requested, but not available!");
     return false;
@@ -331,16 +336,16 @@ bool createInstance(void) {
   createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
   createInfo.pApplicationInfo = &appInfo;
 
-  u32 extCountForVulkan = 0;
-  vkEnumerateInstanceExtensionProperties(0, &extCountForVulkan, 0);
+  // u32 extCountForVulkan = 0;
+  // vkEnumerateInstanceExtensionProperties(0, &extCountForVulkan, 0);
 
-  VkExtensionProperties extensions[extCountForVulkan] = {};
-  vkEnumerateInstanceExtensionProperties(0, &extCountForVulkan, extensions);
+  // VkExtensionProperties extensions[extCountForVulkan] = {};
+  // vkEnumerateInstanceExtensionProperties(0, &extCountForVulkan, extensions);
 
-  fprintf(stderr, "Available extensions:");
-  for (u32 i = 0; i < extCountForVulkan; i++) {
-    fprintf(stderr, "\t%s\n", extensions[i].extensionName);
-  }
+  // fprintf(stderr, "Available extensions:");
+  // for (u32 i = 0; i < extCountForVulkan; i++) {
+  //   fprintf(stderr, "\t%s\n", extensions[i].extensionName);
+  // }
 
   // Useful glfw built-in function to get the required extensions for GLFW to work.
   if (!getRequiredExtensions()) {
@@ -392,7 +397,7 @@ bool checkDeviceExtensionSupport(VkPhysicalDevice device) {
   u32 extensionCount = 0;
   vkEnumerateDeviceExtensionProperties(device, 0, &extensionCount, 0);
 
-  VkExtensionProperties available_extensions[extensionCount];
+  VkExtensionProperties available_extensions[extensionCount] = {};
   vkEnumerateDeviceExtensionProperties(device, 0, &extensionCount, available_extensions);
   
   // For each required device extention, look for a name match
