@@ -106,8 +106,9 @@ queue_family_indices_t *findQueueFamily(VkPhysicalDevice device) {
 bool createLogicalDevice(void) {
   queue_family_indices_t *indices = findQueueFamily(physicalDevice);
 
-  VkDeviceQueueCreateInfo queue_create_infos[(u32)queue_family_length];
   std::set<u32> unique_queue_families = {indices->graphicsFamily, indices->presentFamily};
+  VkDeviceQueueCreateInfo queue_infos[queue_family_length];
+  memset(queue_infos, 0, sizeof(queue_infos));
 
   // Queue Create Info
   f32 queue_priority = 1.0f;
@@ -122,7 +123,7 @@ bool createLogicalDevice(void) {
     }
     queue_create_info.queueCount = 1;
     queue_create_info.pQueuePriorities = &queue_priority;
-    queue_create_infos[i] = queue_create_info;
+    queue_infos[i] = queue_create_info;
   }
   // Get device properties for things like name, type, supported Vulkan version.
   VkPhysicalDeviceProperties device_props;
@@ -134,8 +135,8 @@ bool createLogicalDevice(void) {
   // logical queue
   VkDeviceCreateInfo logical_create_info = {};
   logical_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-  logical_create_info.pQueueCreateInfos = queue_create_infos;
-  logical_create_info.queueCreateInfoCount = (u32)queue_family_length;
+  logical_create_info.pQueueCreateInfos = queue_infos;
+  logical_create_info.queueCreateInfoCount = unique_queue_families.size();
   logical_create_info.pEnabledFeatures = &device_features;
   
   // No longer as of this link: https://www.khronos.org/registry/vulkan/specs/1.3-extensions/html/chap40.html#extendingvulkan-layers-devicelayerdeprecation
