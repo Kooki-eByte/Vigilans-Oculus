@@ -24,8 +24,12 @@
 const char *validationLayers[] = {
   "VK_LAYER_KHRONOS_validation"
 };
-
 const u32 validationLayersLength = (u32)(sizeof(validationLayers) / sizeof(validationLayers[0]));
+
+const char *deviceExtensions[] = {
+  VK_KHR_SWAPCHAIN_EXTENSION_NAME
+};
+const u32 deviceExtensionsLength = (u32)(sizeof(deviceExtensions) / sizeof(deviceExtensions[0]));
 
 #ifdef NDEBUG
 const bool enableValidationLayers = false;
@@ -107,23 +111,20 @@ bool createLogicalDevice(void) {
   queue_family_indices_t *indices = findQueueFamily(physicalDevice);
 
   std::set<u32> unique_queue_families = {indices->graphicsFamily, indices->presentFamily};
-  VkDeviceQueueCreateInfo queue_infos[queue_family_length];
+  VkDeviceQueueCreateInfo queue_infos[(u32)queue_family_length];
   memset(queue_infos, 0, sizeof(queue_infos));
 
   // Queue Create Info
+  u32 queue_count = 0;
   f32 queue_priority = 1.0f;
-  for (u32 i = 0; i < unique_queue_families.size(); i++) {
+  for (u32 family : unique_queue_families) {
     VkDeviceQueueCreateInfo queue_create_info = {};
     queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
     // TODO: This is gross but quickest way in C-Style for now. Have better idea on how to do this but just pushing forward here.
-    if (i == 0) {
-      queue_create_info.queueFamilyIndex = indices->graphicsFamily;
-    } else {
-      queue_create_info.queueFamilyIndex = indices->presentFamily;
-    }
+    queue_create_info.queueFamilyIndex = family;
     queue_create_info.queueCount = 1;
     queue_create_info.pQueuePriorities = &queue_priority;
-    queue_infos[i] = queue_create_info;
+    queue_infos[queue_count++] = queue_create_info;
   }
   // Get device properties for things like name, type, supported Vulkan version.
   VkPhysicalDeviceProperties device_props;
@@ -136,12 +137,13 @@ bool createLogicalDevice(void) {
   VkDeviceCreateInfo logical_create_info = {};
   logical_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
   logical_create_info.pQueueCreateInfos = queue_infos;
-  logical_create_info.queueCreateInfoCount = unique_queue_families.size();
+  logical_create_info.queueCreateInfoCount = queue_count;
   logical_create_info.pEnabledFeatures = &device_features;
   
   // No longer as of this link: https://www.khronos.org/registry/vulkan/specs/1.3-extensions/html/chap40.html#extendingvulkan-layers-devicelayerdeprecation
   // However to be compatible with older version of vulkan GPUs we will include it here.
-  logical_create_info.enabledExtensionCount = 0;
+  logical_create_info.enabledExtensionCount = deviceExtensionsLength;
+  logical_create_info.ppEnabledExtensionNames = deviceExtensions;
   if (enableValidationLayers) {
     logical_create_info.enabledLayerCount = validationLayersLength;
     logical_create_info.ppEnabledLayerNames = validationLayers;
@@ -370,6 +372,25 @@ GLFWwindow *initWindow(window_settings *ws) {
   return win;
 }
 
+bool checkDeviceExtensionSupport(VkPhysicalDevice device) {
+  u32 extensionCount;
+  vkEnumerateDeviceExtensionProperties(device, 0, &extensionCount, 0);
+
+  VkExtensionProperties availableExtensions[extensionCount];
+  vkEnumerateDeviceExtensionProperties(device, 0, &extensionCount, availableExtensions);
+
+  std::set<const char *> requiredExtensions;
+  for (u32 i = 0; i < extensionCount; i++) {
+    requiredExtensions.insert(deviceExtensions[i]);
+  }
+
+  for (const VkExtensionProperties& extension : availableExtensions) {
+    requiredExtensions.erase(extension.extensionName);
+  }
+
+  return requiredExtensions.empty();
+}
+
 bool isDeviceSuitable(VkPhysicalDevice device) {
   // TODO: Put this in arena allocator to free later upon cleanup
   queue_family_indices_t *indices = findQueueFamily(device);
@@ -379,9 +400,11 @@ bool isDeviceSuitable(VkPhysicalDevice device) {
     return false;
   }
 
+  bool extensionsSupported = checkDeviceExtensionSupport(device);
+
   // Set this so that we only support GPUs with support for geometry shaders.
   // return device_props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && device_features.geometryShader;
-  return true;
+  return extensionsSupported;
 }
 
 // Physical Device handling
