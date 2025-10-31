@@ -73,7 +73,13 @@ bool createSurface(GLFWwindow *win) {
 
 // Queue Family
 queue_family_indices_t *findQueueFamily(VkPhysicalDevice device) {
-  queue_family_indices_t *indices = NULL;
+  queue_family_indices_t *indices = (queue_family_indices_t *)malloc(sizeof(queue_family_indices_t));
+  if (!indices) {
+    g_log_error("indices on findQueueFamily failed to malloc");
+    return NULL;
+  }
+  indices->graphicsFamily = UINT32_MAX;
+  indices->presentFamily =  UINT32_MAX;
   
   u32 queue_family_count = 0;
   vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, 0);
@@ -81,27 +87,27 @@ queue_family_indices_t *findQueueFamily(VkPhysicalDevice device) {
   VkQueueFamilyProperties queue_families[queue_family_count] = {};
   vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, queue_families);
 
-  bool queue_family_initialized = false;
   for (u32 i = 0; i < queue_family_count; i++) {
-    if (indices != NULL) break;
-
     VkBool32 present_support = false;
-    vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, &present_support);
+    vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &present_support);
 
-    if (present_support) {
+    if (present_support && indices->presentFamily == UINT32_MAX) {
       indices->presentFamily = i;
     }
-
-    if (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-      // Initialize to memory so it is no longer null and can add values to actual memory and not NULL
-      if (!queue_family_initialized) {
-        indices = (queue_family_indices_t *)malloc(sizeof(queue_family_indices_t));
-        queue_family_initialized = true;
-      }
+    if (queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT && indices->graphicsFamily == UINT32_MAX) {
       indices->graphicsFamily = i;
+    }
+    if (indices->graphicsFamily != UINT32_MAX && indices->presentFamily != UINT32_MAX) {
+      break;
     }
   }
 
+  // Signal not found
+  if (indices->graphicsFamily == UINT32_MAX || indices->presentFamily == UINT32_MAX) {
+    g_log_error("Could not find either graphic family or present family queues!");
+    free(indices);
+    return NULL;
+  }
   return indices;
 }
 // End Queue Family section
@@ -158,6 +164,7 @@ bool createLogicalDevice(void) {
 
   vkGetDeviceQueue(logicalDevice, indices->graphicsFamily, 0, &graphicsQueue);
   vkGetDeviceQueue(logicalDevice, indices->presentFamily, 0, &presentQueue);
+  free(indices);
   return true;
 }
 
@@ -323,7 +330,7 @@ bool createInstance(void) {
 
   fprintf(stderr, "Available extensions:");
   for (u32 i = 0; i < extCountForVulkan; i++) {
-    fprintf(stderr, "\t%s\n", extensions->extensionName);
+    fprintf(stderr, "\t%s\n", extensions[i].extensionName);
   }
 
   // Useful glfw built-in function to get the required extensions for GLFW to work.
@@ -373,22 +380,28 @@ GLFWwindow *initWindow(window_settings *ws) {
 }
 
 bool checkDeviceExtensionSupport(VkPhysicalDevice device) {
-  u32 extensionCount;
+  u32 extensionCount = 0;
   vkEnumerateDeviceExtensionProperties(device, 0, &extensionCount, 0);
 
-  VkExtensionProperties availableExtensions[extensionCount];
-  vkEnumerateDeviceExtensionProperties(device, 0, &extensionCount, availableExtensions);
-
-  std::set<const char *> requiredExtensions;
-  for (u32 i = 0; i < extensionCount; i++) {
-    requiredExtensions.insert(deviceExtensions[i]);
+  VkExtensionProperties available_extensions[extensionCount];
+  vkEnumerateDeviceExtensionProperties(device, 0, &extensionCount, available_extensions);
+  
+  // For each required device extention, look for a name match
+  for (u32 req = 0; req < deviceExtensionsLength; req++) {
+    bool found = false;
+    for (u32 i = 0; i < extensionCount; i++) {
+      if (strcmp(deviceExtensions[req], available_extensions[i].extensionName) == 0) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      g_log_debug("Device Extensions found no matches from available extensions..");
+      return false;
+    }
   }
 
-  for (const VkExtensionProperties& extension : availableExtensions) {
-    requiredExtensions.erase(extension.extensionName);
-  }
-
-  return requiredExtensions.empty();
+  return true;
 }
 
 bool isDeviceSuitable(VkPhysicalDevice device) {
@@ -404,6 +417,7 @@ bool isDeviceSuitable(VkPhysicalDevice device) {
 
   // Set this so that we only support GPUs with support for geometry shaders.
   // return device_props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && device_features.geometryShader;
+  free(indices);
   return extensionsSupported;
 }
 
